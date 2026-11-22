@@ -1,0 +1,63 @@
+import os
+import osmnx as ox
+import folium
+import logging
+
+ox.settings.overpass_url = ("https://maps.mail.ru/osm/tools/overpass/api")
+ox.settings.overpass_rate_limit = False
+ox.settings.requests_timeout = 60
+
+#ox.settings.log_console = True
+#ox.settings.log_level = logging.INFO
+
+
+CENTER = (33.4489, -70.6693)
+DIST = 1000
+
+try:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    BASE_DIR = os.getcwd()
+OUT_DIR = os.path.join(BASE_DIR, "output")
+os.makedirs(OUT_DIR, exist_ok=True)
+
+print("Загрузка...")
+G = ox.graph_from_point(CENTER, dist=DIST, network_type="walk", simplify=True)
+
+n_nodes = G.number_of_nodes()
+n_edges = G.number_of_edges()
+print(f"Узлов: {n_nodes}")
+print(f"Рёбер:  {n_edges}")
+
+m = folium.Map(location=CENTER, zoom_start=15, tiles="OpenStreetMap")
+
+nodes_gdf, edges_gdf = ox.graph_to_gdfs(G)
+folium.GeoJson(
+    edges_gdf,
+    style_function=lambda f: {
+        "color": "#3b7dd8",
+        "weight": 2,
+        "opacity": 0.8,
+    },
+    tooltip=folium.features.GeoJsonTooltip(
+        fields=["highway", "length"],
+        aliases=["Тип:", "Длина, м:"],
+        localize=True,
+    ),
+).add_to(m)
+
+for _, row in nodes_gdf.iterrows():
+    folium.CircleMarker(
+        location=(row.geometry.y, row.geometry.x),
+        radius=3,
+        color="#d94f3b",
+        fill=True,
+        fill_opacity=0.7,
+        weight=1,
+    ).add_to(m)
+
+folium.Marker(CENTER, tooltip="Центр участка").add_to(m)
+
+html_path = os.path.join(OUT_DIR, "walk_graph.html")
+m.save(html_path)
+print(html_path)
