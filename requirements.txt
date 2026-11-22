@@ -1,0 +1,7 @@
+OSMnx
+    geopandas
+    networkx
+    numpy
+    pandas
+    requests
+    shapely
